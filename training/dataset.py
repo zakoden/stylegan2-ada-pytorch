@@ -155,10 +155,12 @@ class ImageFolderDataset(Dataset):
     def __init__(self,
         path,                   # Path to directory or zip.
         resolution      = None, # Ensure specific resolution, None = highest available.
+        rcrop           = None, # Random crop size.
         **super_kwargs,         # Additional arguments for the Dataset base class.
     ):
         self._path = path
         self._zipfile = None
+        self._rcrop = rcrop
 
         if os.path.isdir(self._path):
             self._type = 'dir'
@@ -174,6 +176,7 @@ class ImageFolderDataset(Dataset):
         if len(self._image_fnames) == 0:
             raise IOError('No image files found in the specified path')
 
+        self.cached_images = [None for _ in range(len(self._image_fnames))]
         name = os.path.splitext(os.path.basename(self._path))[0]
         raw_shape = [len(self._image_fnames)] + list(self._load_raw_image(0).shape)
         if resolution is not None and (raw_shape[2] != resolution or raw_shape[3] != resolution):
@@ -208,15 +211,23 @@ class ImageFolderDataset(Dataset):
         return dict(super().__getstate__(), _zipfile=None)
 
     def _load_raw_image(self, raw_idx):
-        fname = self._image_fnames[raw_idx]
-        with self._open_file(fname) as f:
-            if pyspng is not None and self._file_ext(fname) == '.png':
-                image = pyspng.load(f.read())
-            else:
-                image = np.array(PIL.Image.open(f))
-        if image.ndim == 2:
-            image = image[:, :, np.newaxis] # HW => HWC
-        image = image.transpose(2, 0, 1) # HWC => CHW
+        if self.cached_images[raw_idx] is None:
+            fname = self._image_fnames[raw_idx]
+            with self._open_file(fname) as f:
+                if pyspng is not None and self._file_ext(fname) == '.png':
+                    image = pyspng.load(f.read())
+                else:
+                    image = np.array(PIL.Image.open(f))
+            if image.ndim == 2:
+                image = image[:, :, np.newaxis] # HW => HWC
+            image = image.transpose(2, 0, 1) # HWC => CHW
+            self.cached_images[raw_idx] = image
+            
+        image = self.cached_images[raw_idx]
+        if self._rcrop is not None:
+          x = np.random.randint(image.shape[1] - self._rcrop + 1)
+          y = np.random.randint(image.shape[2] - self._rcrop + 1)
+          image = image[:, x:x+self._rcrop, y:y+self._rcrop]
         return image
 
     def _load_raw_labels(self):
