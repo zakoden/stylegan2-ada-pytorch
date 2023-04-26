@@ -23,6 +23,7 @@ from torch_utils.ops import grid_sample_gradfix
 
 import legacy
 from metrics import metric_main
+import wandb
 
 #----------------------------------------------------------------------------
 
@@ -235,6 +236,7 @@ def training_loop(
     stats_tfevents = None
     if rank == 0:
         stats_jsonl = open(os.path.join(run_dir, 'stats.jsonl'), 'wt')
+        wandb_run = wandb.init(project="stylegan-ada")
         try:
             import torch.utils.tensorboard as tensorboard
             stats_tfevents = tensorboard.SummaryWriter(run_dir)
@@ -390,6 +392,11 @@ def training_loop(
 
         # Update logs.
         timestamp = time.time()
+        wandb_dict = {}
+        for stat_name in stats_dict:
+          wandb_dict[stat_name] = stats_dict[stat_name]["mean"]
+        wandb_dict["timestamp"] = timestamp
+        wandb.log(wandb_dict)
         if stats_jsonl is not None:
             fields = dict(stats_dict, timestamp=timestamp)
             stats_jsonl.write(json.dumps(fields) + '\n')
