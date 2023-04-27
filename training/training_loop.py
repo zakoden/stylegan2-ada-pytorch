@@ -29,8 +29,8 @@ import wandb
 
 def setup_snapshot_image_grid(training_set, random_seed=0):
     rnd = np.random.RandomState(random_seed)
-    gw = np.clip(7680 // training_set.image_shape[2], 7, 32)
-    gh = np.clip(4320 // training_set.image_shape[1], 4, 32)
+    gw = np.clip(20 * 64 // training_set.image_shape[2], 10, 20)
+    gh = np.clip(10 * 64 // training_set.image_shape[1], 5, 10)
 
     # No labels => show random subset of training samples.
     if not training_set.has_labels:
@@ -237,6 +237,7 @@ def training_loop(
     if rank == 0:
         stats_jsonl = open(os.path.join(run_dir, 'stats.jsonl'), 'wt')
         wandb_run = wandb.init(project="stylegan-ada")
+        wandb.log({"Real images": wandb.Image(os.path.join(run_dir, 'reals.png'))})
         try:
             import torch.utils.tensorboard as tensorboard
             stats_tfevents = tensorboard.SummaryWriter(run_dir)
@@ -349,7 +350,9 @@ def training_loop(
         # Save image snapshot.
         if (rank == 0) and (image_snapshot_ticks is not None) and (done or cur_tick % image_snapshot_ticks == 0):
             images = torch.cat([G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
-            save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.png'), drange=[-1,1], grid_size=grid_size)
+            cur_path_to_images = os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.png')
+            save_image_grid(images, cur_path_to_images, drange=[-1,1], grid_size=grid_size)
+            wandb.log({"Generated": wandb.Image(cur_path_to_images)})
 
         # Save network snapshot.
         snapshot_pkl = None
@@ -377,6 +380,7 @@ def training_loop(
                     dataset_kwargs=training_set_kwargs, num_gpus=num_gpus, rank=rank, device=device)
                 if rank == 0:
                     metric_main.report_metric(result_dict, run_dir=run_dir, snapshot_pkl=snapshot_pkl)
+                    wandb.log(result_dict.results)
                 stats_metrics.update(result_dict.results)
         del snapshot_data # conserve memory
 
