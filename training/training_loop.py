@@ -24,6 +24,7 @@ from torch_utils.ops import grid_sample_gradfix
 import legacy
 from metrics import metric_main
 import wandb
+import gc
 
 #----------------------------------------------------------------------------
 
@@ -383,6 +384,8 @@ def training_loop(
                     wandb.log(result_dict.results)
                 stats_metrics.update(result_dict.results)
         del snapshot_data # conserve memory
+        if rank == 0:
+            gc.collect()
 
         # Collect statistics.
         for phase in phases:
