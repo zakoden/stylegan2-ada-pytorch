@@ -384,8 +384,7 @@ def training_loop(
                     wandb.log(result_dict.results)
                 stats_metrics.update(result_dict.results)
         del snapshot_data # conserve memory
-        if rank == 0:
-            gc.collect()
+        gc.collect()
 
         # Collect statistics.
         for phase in phases:
