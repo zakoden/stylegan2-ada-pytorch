@@ -48,6 +48,7 @@ def setup_training_loop_kwargs(
     gamma      = None, # Override R1 gamma: <float>
     kimg       = None, # Override training duration: <int>
     batch      = None, # Override batch size: <int>
+    color_reg  = None, # Color regularization coefficient: <float>
 
     # Discriminator augmentation.
     aug        = None, # Augmentation mode: 'ada' (default), 'noaug', 'fixed'
@@ -423,6 +424,7 @@ class CommaSeparatedList(click.ParamType):
 @click.option('--gamma', help='Override R1 gamma', type=float)
 @click.option('--kimg', help='Override training duration', type=int, metavar='INT')
 @click.option('--batch', help='Override batch size', type=int, metavar='INT')
+@click.option('--color-reg', help='Color regularization coefficient [default: None]', type=float)
 
 # Discriminator augmentation.
 @click.option('--aug', help='Augmentation mode [default: ada]', type=click.Choice(['noaug', 'ada', 'fixed']))
