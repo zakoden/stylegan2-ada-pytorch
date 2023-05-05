@@ -147,9 +147,9 @@ def setup_training_loop_kwargs(
     if rcrop is not None:
       desc += f'-rcrop{rcrop}'
 
-    # ------------------------------------
-    # Base config: cfg, gamma, kimg, batch
-    # ------------------------------------
+    # -----------------------------------------------
+    # Base config: cfg, gamma, kimg, batch, color_reg
+    # -----------------------------------------------
 
     if cfg is None:
         cfg = 'auto'
@@ -223,6 +223,11 @@ def setup_training_loop_kwargs(
         desc += f'-batch{batch}'
         args.batch_size = batch
         args.batch_gpu = batch // gpus
+      
+    if color_reg is not None:
+        args.color_reg = color_reg
+        args.G_kwargs.color_reg = color_reg
+        args.loss_kwargs.color_reg = color_reg
 
     # ---------------------------------------------------
     # Discriminator augmentation: aug, p, target, augpipe
