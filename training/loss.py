@@ -21,19 +21,21 @@ class Loss:
 #----------------------------------------------------------------------------
 
 class StyleGAN2Loss(Loss):
-    def __init__(self, device, G_mapping, G_synthesis, D, augment_pipe=None, style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2):
+    def __init__(self, device, G_mapping, G_synthesis, D, augment_pipe=None, G_palette=None, style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2, color_reg=None):
         super().__init__()
         self.device = device
         self.G_mapping = G_mapping
         self.G_synthesis = G_synthesis
         self.D = D
         self.augment_pipe = augment_pipe
+        self.G_palette = G_palette
         self.style_mixing_prob = style_mixing_prob
         self.r1_gamma = r1_gamma
         self.pl_batch_shrink = pl_batch_shrink
         self.pl_decay = pl_decay
         self.pl_weight = pl_weight
         self.pl_mean = torch.zeros([], device=device)
+        self.color_reg = color_reg
 
     def run_G(self, z, c, sync):
         with misc.ddp_sync(self.G_mapping, sync):
