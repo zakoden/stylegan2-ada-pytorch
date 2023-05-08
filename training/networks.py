@@ -512,8 +512,8 @@ class PaletteExtractor(torch.nn.Module):
         # ws [batch_size, num_ws, w_dim]
         color_feat = torch.cat([feat, ws], axis=1)
         color_palette = self.colors_layer1(color_feat)
-        color_palette = self.channels_layer1(color_feat.transpose(-2, -1))
-        color_palette = self.colors_layer2(color_feat.transpose(-2, -1))
+        color_palette = self.channels_layer1(color_palette.transpose(-2, -1))
+        color_palette = self.colors_layer2(color_palette.transpose(-2, -1))
         return color_palette # [batch_size, img_channels, palette_size]
 
 #----------------------------------------------------------------------------
