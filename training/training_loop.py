@@ -188,7 +188,7 @@ def training_loop(
         add_modules = []
     else:
         add_modules = [('G_palette', G.palette_extractor)]
-    for name, module in [('G_mapping', G.mapping), ('G_synthesis', G.synthesis), ('D', D), (None, G_ema), ('augment_pipe', augment_pipe)]:
+    for name, module in [('G_mapping', G.mapping), ('G_synthesis', G.synthesis), ('D', D), (None, G_ema), ('augment_pipe', augment_pipe)] + add_modules:
         if (num_gpus > 1) and (module is not None) and len(list(module.parameters())) != 0:
             module.requires_grad_(True)
             module = torch.nn.parallel.DistributedDataParallel(module, device_ids=[device], broadcast_buffers=False)
@@ -362,9 +362,9 @@ def training_loop(
                 images = []
                 palettes = []
                 for z, c in zip(grid_z, grid_c):
-                    cur_image, cur_palette = G_ema(z=z, c=c, noise_mode='const', predict_palette=True).cpu()
-                    images.append(cur_image)
-                    palettes.append(cur_palette[:, :, :, None])
+                    cur_image, cur_palette = G_ema(z=z, c=c, noise_mode='const', predict_palette=True)
+                    images.append(cur_image.cpu())
+                    palettes.append(cur_palette.cpu()[:, :, :, None])
                 images = torch.cat(images).numpy()
                 palettes = torch.cat(palettes).numpy()
                 cur_path_to_palettes = os.path.join(run_dir, f'palettes{cur_nimg//1000:06d}.png')
