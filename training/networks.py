@@ -8,6 +8,7 @@
 
 import numpy as np
 import torch
+import torchcvision
 from torch_utils import misc
 from torch_utils import persistence
 from torch_utils.ops import conv2d_resample
@@ -474,6 +475,50 @@ class SynthesisNetwork(torch.nn.Module):
 #----------------------------------------------------------------------------
 
 @persistence.persistent_class
+class PaletteExtractor(torch.nn.Module):
+    def __init__(self,
+        w_dim,                      # Intermediate latent (W) dimensionality.
+        num_ws,                     # Number of latent (W) vectors.
+        palette_size,               # Number of colors in output palette.
+        img_channels,               # Number of output color channels.
+    ):
+        super().__init__()
+        self.w_dim = w_dim
+        self.num_ws = num_ws
+        self.palette_size = palette_size
+        
+        self.img_features = torchvision.models.squeezenet1_1(num_classes=w_dim)
+        self.img_features.classifier[0] = torch.nn.Identity()
+        
+        self.colors_layer1 = torch.nn.Sequential(
+            torch.nn.Linear(w_dim, palette_size),
+            torch.nn.GELU(),
+            torch.nn.Linear(palette_size, palette_size),
+        )
+        self.channels_layer1 = torch.nn.Sequential(
+            torch.nn.Linear(num_ws + 1, img_channels),
+            torch.nn.GELU(),
+            torch.nn.Linear(img_channels, img_channels),
+        )
+        self.colors_layer2 = torch.nn.Sequential(
+            torch.nn.Linear(palette_size, palette_size),
+            torch.nn.GELU(),
+            torch.nn.Linear(palette_size, palette_size),
+        )
+
+    def forward(self, img, ws):
+        feat = self.img_features(img)[:, None, :]
+        # feat [batch_size, 1, w_dim]
+        # ws [batch_size, num_ws, w_dim]
+        color_feat = torch.cat([feat, ws], axis=1)
+        color_palette = self.colors_layer1(color_feat)
+        color_palette = self.channels_layer1(color_feat.transpose(-2, -1))
+        color_palette = self.colors_layer2(color_feat.transpose(-2, -1))
+        return color_palette # [batch_size, img_channels, palette_size]
+
+#----------------------------------------------------------------------------
+
+@persistence.persistent_class
 class Generator(torch.nn.Module):
     def __init__(self,
         z_dim,                      # Input latent (Z) dimensionality.
@@ -483,6 +528,7 @@ class Generator(torch.nn.Module):
         img_channels,               # Number of output color channels.
         mapping_kwargs      = {},   # Arguments for MappingNetwork.
         synthesis_kwargs    = {},   # Arguments for SynthesisNetwork.
+        palette_size        = None, # Palette size for color regularization
     ):
         super().__init__()
         self.z_dim = z_dim
@@ -493,6 +539,9 @@ class Generator(torch.nn.Module):
         self.synthesis = SynthesisNetwork(w_dim=w_dim, img_resolution=img_resolution, img_channels=img_channels, **synthesis_kwargs)
         self.num_ws = self.synthesis.num_ws
         self.mapping = MappingNetwork(z_dim=z_dim, c_dim=c_dim, w_dim=w_dim, num_ws=self.num_ws, **mapping_kwargs)
+        if palette_size is not None:
+            self.palette_size = palette_size
+            self.palette_extractor = PaletteExtractor(w_dim=w_dim, num_ws=self.num_ws, palette_size=palette_size, img_channels=img_channels)
 
     def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, **synthesis_kwargs):
         ws = self.mapping(z, c, truncation_psi=truncation_psi, truncation_cutoff=truncation_cutoff)
