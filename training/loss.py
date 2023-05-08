@@ -75,11 +75,11 @@ class StyleGAN2Loss(Loss):
             with torch.autograd.profiler.record_function('Gmain_backward'):
                 loss_Gmain.mean().mul(gain).backward()
 
-        # Gpl: Apply path length regularization.
+        # Gpl: Apply path length regularization and color regularization (optional).
         if do_Gpl:
             with torch.autograd.profiler.record_function('Gpl_forward'):
                 batch_size = gen_z.shape[0] // self.pl_batch_shrink
-                gen_img, gen_ws = self.run_G(gen_z[:batch_size], gen_c[:batch_size], sync=sync)
+                gen_img, gen_ws = self.run_G(gen_z[:batch_size], gen_c[:batch_size], sync=sync)                
                 pl_noise = torch.randn_like(gen_img) / np.sqrt(gen_img.shape[2] * gen_img.shape[3])
                 with torch.autograd.profiler.record_function('pl_grads'), conv2d_gradfix.no_weight_gradients():
                     pl_grads = torch.autograd.grad(outputs=[(gen_img * pl_noise).sum()], inputs=[gen_ws], create_graph=True, only_inputs=True)[0]
@@ -92,6 +92,17 @@ class StyleGAN2Loss(Loss):
                 training_stats.report('Loss/G/reg', loss_Gpl)
             with torch.autograd.profiler.record_function('Gpl_backward'):
                 (gen_img[:, 0, 0, 0] * 0 + loss_Gpl).mean().mul(gain).backward()
+                
+            # add color regularization
+            if self.color_reg is not None:
+                with misc.ddp_sync(self.G_palette, sync):
+                    gen_palette = self.G_palette(gen_img, gen_ws)
+                gen_flatten_img = torch.flatten(gen_img, start_dim=-2)
+                mul_matrix = torch.matmul(gen_palette.transpose(-2, -1), gen_flatten_img)
+                mse_matrix = (gen_palette**2).sum(dim=1)[:, :, None] + (gen_flatten_img**2).sum(dim=1) [:, None, :] - 2.0 * mul_matrix
+                loss_color_reg = torch.min(mse_matrix / 3.0, dim=1).values.mean(dim=1) * self.color_reg
+                training_stats.report('Loss/G/color_reg', loss_color_reg)
+                loss_color_reg.mean().mul(gain).backward()
 
         # Dmain: Minimize logits for generated images.
         loss_Dgen = 0
