@@ -543,9 +543,12 @@ class Generator(torch.nn.Module):
             self.palette_size = palette_size
             self.palette_extractor = PaletteExtractor(w_dim=w_dim, num_ws=self.num_ws, palette_size=palette_size, img_channels=img_channels)
 
-    def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, **synthesis_kwargs):
+    def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, predict_palette=False, **synthesis_kwargs):
         ws = self.mapping(z, c, truncation_psi=truncation_psi, truncation_cutoff=truncation_cutoff)
         img = self.synthesis(ws, **synthesis_kwargs)
+        if predict_palette:
+            palette = self.palette_extractor(img, ws)
+            return img, palette
         return img
 
 #----------------------------------------------------------------------------
