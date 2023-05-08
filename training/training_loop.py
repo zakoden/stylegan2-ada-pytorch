@@ -355,10 +355,25 @@ def training_loop(
 
         # Save image snapshot.
         if (rank == 0) and (image_snapshot_ticks is not None) and (done or cur_tick % image_snapshot_ticks == 0):
-            images = torch.cat([G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
+            image_log_dict = {}
+            if color_reg is None:
+                images = torch.cat([G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
+            else:
+                images = []
+                palettes = []
+                for z, c in zip(grid_z, grid_c):
+                    cur_image, cur_palette = G_ema(z=z, c=c, noise_mode='const', predict_palette=True).cpu()
+                    images.append(cur_image)
+                    palettes.append(cur_palette[:, :, :, None])
+                images = torch.cat(images).numpy()
+                palettes = torch.cat(palettes).numpy()
+                cur_path_to_palettes = os.path.join(run_dir, f'palettes{cur_nimg//1000:06d}.png')
+                save_image_grid(palettes, cur_path_to_palettes, drange=[-1,1], grid_size=grid_size)
+                image_log_dict["Palette"] = wandb.Image(cur_path_to_palettes)
             cur_path_to_images = os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.png')
             save_image_grid(images, cur_path_to_images, drange=[-1,1], grid_size=grid_size)
-            wandb.log({"Generated": wandb.Image(cur_path_to_images)})
+            image_log_dict["Generated"] = wandb.Image(cur_path_to_images)
+            wandb.log(image_log_dict)
 
         # Save network snapshot.
         snapshot_pkl = None
