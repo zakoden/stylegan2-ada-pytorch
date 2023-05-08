@@ -8,7 +8,7 @@
 
 import numpy as np
 import torch
-import torchcvision
+import torchvision
 from torch_utils import misc
 from torch_utils import persistence
 from torch_utils.ops import conv2d_resample
