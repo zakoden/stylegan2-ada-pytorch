@@ -49,6 +49,7 @@ def setup_training_loop_kwargs(
     kimg       = None, # Override training duration: <int>
     batch      = None, # Override batch size: <int>
     color_reg  = None, # Color regularization coefficient: <float>
+    palette    = None, # Palette size for color regulatization: <int>
 
     # Discriminator augmentation.
     aug        = None, # Augmentation mode: 'ada' (default), 'noaug', 'fixed'
@@ -226,7 +227,9 @@ def setup_training_loop_kwargs(
       
     if color_reg is not None:
         args.color_reg = color_reg
-        args.G_kwargs.color_reg = color_reg
+        if palette is None:
+            palette = 64
+        args.G_kwargs.palette_size = palette
         args.loss_kwargs.color_reg = color_reg
 
     # ---------------------------------------------------
@@ -430,6 +433,7 @@ class CommaSeparatedList(click.ParamType):
 @click.option('--kimg', help='Override training duration', type=int, metavar='INT')
 @click.option('--batch', help='Override batch size', type=int, metavar='INT')
 @click.option('--color-reg', help='Color regularization coefficient [default: None]', type=float)
+@click.option('--palette', help='Palette size for color regularization [default: 64]', type=int, metavar='INT')
 
 # Discriminator augmentation.
 @click.option('--aug', help='Augmentation mode [default: ada]', type=click.Choice(['noaug', 'ada', 'fixed']))
