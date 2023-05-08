@@ -77,6 +77,7 @@ class StyleGAN2Loss(Loss):
 
         # Gpl: Apply path length regularization and color regularization (optional).
         if do_Gpl:
+            first_retain_graph = (self.color_reg is not None)
             with torch.autograd.profiler.record_function('Gpl_forward'):
                 batch_size = gen_z.shape[0] // self.pl_batch_shrink
                 gen_img, gen_ws = self.run_G(gen_z[:batch_size], gen_c[:batch_size], sync=sync)                
@@ -91,7 +92,7 @@ class StyleGAN2Loss(Loss):
                 loss_Gpl = pl_penalty * self.pl_weight
                 training_stats.report('Loss/G/reg', loss_Gpl)
             with torch.autograd.profiler.record_function('Gpl_backward'):
-                (gen_img[:, 0, 0, 0] * 0 + loss_Gpl).mean().mul(gain).backward()
+                (gen_img[:, 0, 0, 0] * 0 + loss_Gpl).mean().mul(gain).backward(retain_graph=first_retain_graph)
                 
             # add color regularization
             if self.color_reg is not None:
