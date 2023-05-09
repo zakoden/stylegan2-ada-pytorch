@@ -370,12 +370,12 @@ def training_loop(
                     cur_palette = cur_palette.cpu()
                     
                     cur_flatten_image = torch.flatten(cur_image, start_dim=-2)
-                    mul_matrix = torch.matmul(cur_palette.transpose(-2, -1), cur_flatten_img)
-                    mse_matrix = (cur_palette**2).sum(dim=1)[:, :, None] + (cur_flatten_img**2).sum(dim=1) [:, None, :] - 2.0 * mul_matrix
+                    mul_matrix = torch.matmul(cur_palette.transpose(-2, -1), cur_flatten_image)
+                    mse_matrix = (cur_palette**2).sum(dim=1)[:, :, None] + (cur_flatten_image**2).sum(dim=1) [:, None, :] - 2.0 * mul_matrix
                     ind_matrix = torch.min(mse_matrix / 3.0, dim=1).indices
                     ind_matrix = ind_matrix[:, None, :].repeat(1, 3, 1)
                     q_flatten_image = torch.gather(cur_palette, dim=2, index=ind_matrix)
-                    q_image = q_flatten_image.reshape(q_flatten_image.shape[:-2] + (img_dim1, img_dim2))
+                    q_image = q_flatten_image.reshape(q_flatten_image.shape[:-1] + (img_dim1, img_dim2))
                     
                     images.append(cur_image)
                     palettes.append(cur_palette[:, :, :, None])
