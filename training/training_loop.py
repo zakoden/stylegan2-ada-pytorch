@@ -361,15 +361,36 @@ def training_loop(
             else:
                 images = []
                 palettes = []
+                q_images = []
                 for z, c in zip(grid_z, grid_c):
                     cur_image, cur_palette = G_ema(z=z, c=c, noise_mode='const', predict_palette=True)
-                    images.append(cur_image.cpu())
-                    palettes.append(cur_palette.cpu()[:, :, :, None])
+                    cur_image = cur_image.cpu()
+                    img_dim1 = cur_image.shape[-2]
+                    img_dim2 = cur_image.shape[-1]
+                    cur_palette = cur_palette.cpu()
+                    
+                    cur_flatten_image = torch.flatten(cur_image, start_dim=-2)
+                    mul_matrix = torch.matmul(cur_palette.transpose(-2, -1), cur_flatten_img)
+                    mse_matrix = (cur_palette**2).sum(dim=1)[:, :, None] + (cur_flatten_img**2).sum(dim=1) [:, None, :] - 2.0 * mul_matrix
+                    ind_matrix = torch.min(mse_matrix / 3.0, dim=1).indices
+                    ind_matrix = ind_matrix[:, None, :].repeat(1, 3, 1)
+                    q_flatten_image = torch.gather(cur_palette, dim=2, index=ind_matrix)
+                    q_image = q_flatten_image.reshape(q_flatten_image.shape[:-2] + (img_dim1, img_dim2))
+                    
+                    images.append(cur_image)
+                    palettes.append(cur_palette[:, :, :, None])
+                    q_images.append(q_image)
                 images = torch.cat(images).numpy()
                 palettes = torch.cat(palettes).numpy()
+                q_images = torch.cat(q_images).numpy()
+                # palette
                 cur_path_to_palettes = os.path.join(run_dir, f'palettes{cur_nimg//1000:06d}.png')
                 save_image_grid(palettes, cur_path_to_palettes, drange=[-1,1], grid_size=grid_size)
                 image_log_dict["Palette"] = wandb.Image(cur_path_to_palettes)
+                # q_images
+                cur_path_to_q_images = os.path.join(run_dir, f'q_fakes{cur_nimg//1000:06d}.png')
+                save_image_grid(q_images, cur_path_to_q_images, drange=[-1,1], grid_size=grid_size)
+                image_log_dict["Generated with palette"] = wandb.Image(cur_path_to_q_images)
             cur_path_to_images = os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.png')
             save_image_grid(images, cur_path_to_images, drange=[-1,1], grid_size=grid_size)
             image_log_dict["Generated"] = wandb.Image(cur_path_to_images)
