@@ -42,6 +42,7 @@ def setup_training_loop_kwargs(
     subset     = None, # Train with only N images: <int>, default = all
     mirror     = None, # Augment dataset with x-flips: <bool>, default = False
     rcrop      = None, # Size for random crop: <int>, default = no crop
+    clusters   = None, # Max number of colors in clustered dataset: <int>, default = no clusters
 
     # Base config.
     cfg        = None, # Base config: 'auto' (default), 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar'
@@ -146,7 +147,11 @@ def setup_training_loop_kwargs(
         args.training_set_kwargs.xflip = True
         
     if rcrop is not None:
-      desc += f'-rcrop{rcrop}'
+        desc += f'-rcrop{rcrop}'
+    
+    if clusters is not None:
+        desc += f'-clusters{clusters}'
+        args.clusters = clusters
 
     # -----------------------------------------------
     # Base config: cfg, gamma, kimg, batch, color_reg
@@ -426,6 +431,7 @@ class CommaSeparatedList(click.ParamType):
 @click.option('--subset', help='Train with only N images [default: all]', type=int, metavar='INT')
 @click.option('--mirror', help='Enable dataset x-flips [default: false]', type=bool, metavar='BOOL')
 @click.option('--rcrop', help='Size of random crop [default: no crop]', type=int, metavar='INT')
+@click.option('--clusters', help='Max number of colors in clustered dataset [default: no clusters]', type=int, metavar='INT')
 
 # Base config.
 @click.option('--cfg', help='Base config [default: auto]', type=click.Choice(['auto', 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar']))
