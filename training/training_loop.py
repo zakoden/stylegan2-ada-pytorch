@@ -108,6 +108,7 @@ def training_loop(
     G_reg_interval          = 4,        # How often to perform regularization for G? None = disable lazy regularization.
     D_reg_interval          = 16,       # How often to perform regularization for D? None = disable lazy regularization.
     color_reg               = None,     # Coefficient for color regularization loss.
+    clusters                = None,     # Max number of colors in clustered dataset. None = no clusters
     augment_p               = 0,        # Initial value of augmentation probability.
     ada_target              = None,     # ADA target value. None = fixed p.
     ada_interval            = 4,        # How often to perform ADA adjustment?
@@ -136,7 +137,11 @@ def training_loop(
     # Load training set.
     if rank == 0:
         print('Loading training set...')
-    training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs) # subclass of training.dataset.Dataset
+    if clusters is not None:
+        cur_clusters = 4
+        training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs, cluster_path = str(cur_clusters))
+    else:
+        training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs) # subclass of training.dataset.Dataset
     training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
     training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))
     if rank == 0:
@@ -424,6 +429,18 @@ def training_loop(
                     metric_main.report_metric(result_dict, run_dir=run_dir, snapshot_pkl=snapshot_pkl)
                     wandb.log(result_dict.results)
                 stats_metrics.update(result_dict.results)
+                
+        # Update dataset
+        if (snapshot_data is not None) and (len(metrics) > 0):
+            if (clusters is not None) and (cur_clusters <= clusters):
+                if cur_clusters == clusters:
+                    training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs)
+                else:              
+                    cur_clusters += 1
+                    training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs, cluster_path = str(cur_clusters))
+                training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
+                training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))  
+              
         del snapshot_data # conserve memory
         gc.collect()
 
