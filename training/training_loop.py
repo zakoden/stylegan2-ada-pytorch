@@ -139,7 +139,7 @@ def training_loop(
         print('Loading training set...')
     if clusters is not None:
         cur_clusters = 4
-        training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs, cluster_path = str(cur_clusters))
+        training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs, cluster_path = "04")
     else:
         training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs) # subclass of training.dataset.Dataset
     training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
@@ -437,7 +437,10 @@ def training_loop(
                     training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs)
                 else:              
                     cur_clusters += 1
-                    training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs, cluster_path = str(cur_clusters))
+                    cur_clusters_path = str(cur_clusters)
+                    if cur_clusters < 10:
+                        cur_clusters_path = "0" + cur_clusters_path
+                    training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs, cluster_path = cur_clusters_path)
                 training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
                 training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))  
               
