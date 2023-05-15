@@ -156,8 +156,11 @@ class ImageFolderDataset(Dataset):
         path,                   # Path to directory or zip.
         resolution      = None, # Ensure specific resolution, None = highest available.
         rcrop           = None, # Random crop size.
+        cluster_path    = None, # Change "full" folder for specified folder in case of clustered dataset
         **super_kwargs,         # Additional arguments for the Dataset base class.
     ):
+        if cluster_path is not None:
+            path = path[:-4] + cluster_path
         self._path = path
         self._zipfile = None
         self._rcrop = rcrop
